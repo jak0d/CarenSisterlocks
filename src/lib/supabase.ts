@@ -14,4 +14,12 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
         persistSession: true,
         detectSessionInUrl: true,
     },
+    db: {
+        schema: 'public',
+    },
+    global: {
+        headers: {
+            'Accept': 'application/json',
+        },
+    },
 });

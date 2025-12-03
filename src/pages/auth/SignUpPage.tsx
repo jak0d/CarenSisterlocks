@@ -10,7 +10,8 @@ interface SignUpFormData {
     email: string;
     password: string;
     confirmPassword: string;
-    role: 'client' | 'worker';
+    role: 'client' | 'worker' | 'admin';
+    adminKey?: string; // Required only when role is 'admin'
 }
 
 export default function SignUpPage() {
@@ -29,10 +30,21 @@ export default function SignUpPage() {
     });
 
     const password = watch('password');
+    const selectedRole = watch('role'); // Track selected role for conditional rendering
 
     const onSubmit = async (data: SignUpFormData) => {
         setLoading(true);
         try {
+            // Validate admin key if role is admin
+            if (data.role === 'admin') {
+                const adminKey = import.meta.env.VITE_ADMIN_REGISTRATION_KEY;
+                if (!data.adminKey || data.adminKey !== adminKey) {
+                    toast.error('Invalid admin registration key');
+                    setLoading(false);
+                    return;
+                }
+            }
+
             await signUp(data.email, data.password, data.fullName, data.role);
             toast.success('Account created successfully! Please check your email to verify your account.');
         } catch (error: any) {
@@ -114,14 +126,41 @@ export default function SignUpPage() {
                             >
                                 <option value="client">Client</option>
                                 <option value="worker">Worker</option>
+                                <option value="admin">Admin</option>
                             </select>
                             {errors.role && (
                                 <p className="mt-1 text-sm text-red-600">{errors.role.message}</p>
                             )}
-                            <p className="mt-1 text-xs text-gray-500">
-                                Note: Admin accounts must be invited by existing admins
-                            </p>
+                            {selectedRole === 'admin' && (
+                                <p className="mt-1 text-xs text-amber-600">
+                                    ⚠️ Admin registration requires a valid registration key
+                                </p>
+                            )}
                         </div>
+
+                        {/* Admin Key Field - Only shown when admin role is selected */}
+                        {selectedRole === 'admin' && (
+                            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                                <label htmlFor="adminKey" className="block text-sm font-medium text-gray-700 mb-1">
+                                    Admin Registration Key
+                                </label>
+                                <input
+                                    {...register('adminKey', {
+                                        required: selectedRole === 'admin' ? 'Admin registration key is required' : false,
+                                    })}
+                                    type="password"
+                                    id="adminKey"
+                                    className={`input ${errors.adminKey ? 'input-error' : ''}`}
+                                    placeholder="Enter admin registration key"
+                                />
+                                {errors.adminKey && (
+                                    <p className="mt-1 text-sm text-red-600">{errors.adminKey.message}</p>
+                                )}
+                                <p className="mt-2 text-xs text-gray-600">
+                                    This key is required to create an admin account. Contact the system administrator if you need access.
+                                </p>
+                            </div>
+                        )}
 
                         <div>
                             <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">

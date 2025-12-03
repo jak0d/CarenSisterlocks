@@ -42,21 +42,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return () => subscription.unsubscribe();
     }, []);
 
-    const fetchUserProfile = async (authUser: User) => {
+    const fetchUserProfile = async (authUser: User, retryCount = 0) => {
+        const MAX_RETRIES = 3;
+        const RETRY_DELAY = 1000; // 1 second
+
         try {
+            // Use maybeSingle() instead of single() to avoid 406 errors
+            // RLS policies will automatically filter to show only the user's own profile
             const { data, error } = await supabase
                 .from('users')
                 .select('id, email, full_name, role')
                 .eq('id', authUser.id)
-                .single();
+                .maybeSingle();
 
-            if (error) throw error;
+            if (error) {
+                console.error('Error fetching user profile:', error);
+                throw error;
+            }
 
+            if (!data) {
+                // User profile doesn't exist yet, might be during signup
+                // Retry a few times to give the trigger time to create the profile
+                if (retryCount < MAX_RETRIES) {
+                    console.warn(`User profile not found, retrying (${retryCount + 1}/${MAX_RETRIES})...`);
+                    setTimeout(() => {
+                        fetchUserProfile(authUser, retryCount + 1);
+                    }, RETRY_DELAY);
+                    return;
+                } else {
+                    console.error('User profile not found after maximum retries. This might indicate a database trigger issue.');
+                    setUser(null);
+                    setLoading(false);
+                    return;
+                }
+            }
+
+            console.log('User profile loaded successfully:', { id: data.id, email: data.email, role: data.role });
             setUser(data as AuthUser);
-        } catch (error) {
+            setLoading(false);
+        } catch (error: any) {
             console.error('Error fetching user profile:', error);
             setUser(null);
-        } finally {
             setLoading(false);
         }
     };
