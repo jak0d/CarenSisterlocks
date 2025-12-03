@@ -8,6 +8,8 @@ import HomePage from './pages/HomePage';
 import BookAppointmentPage from './pages/client/BookAppointmentPage';
 import LoginPage from './pages/auth/LoginPage';
 import SignUpPage from './pages/auth/SignUpPage';
+import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
+import UpdatePasswordPage from './pages/auth/UpdatePasswordPage';
 
 // Admin Pages
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -21,6 +23,7 @@ import SettingsPage from './pages/admin/SettingsPage';
 import WorkerDashboard from './pages/worker/WorkerDashboard';
 import WorkerBookingsPage from './pages/worker/WorkerBookingsPage';
 import WorkerServicesPage from './pages/worker/WorkerServicesPage';
+import WorkerSetupPage from './pages/worker/WorkerSetupPage';
 
 // Client Pages
 import ClientDashboard from './pages/client/ClientDashboard';
@@ -67,6 +70,9 @@ function AppRoutes() {
       <Route path="/book" element={<BookAppointmentPage />} />
       <Route path="/login" element={user ? <Navigate to={`/${user.role}`} replace /> : <LoginPage />} />
       <Route path="/signup" element={user ? <Navigate to={`/${user.role}`} replace /> : <SignUpPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/update-password" element={<UpdatePasswordPage />} />
+      <Route path="/worker/setup" element={<WorkerSetupPage />} />
 
       {/* Admin Routes */}
       <Route

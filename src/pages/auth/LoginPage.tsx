@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { Sparkles } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -12,7 +12,6 @@ interface LoginFormData {
 
 export default function LoginPage() {
     const { signIn } = useAuth();
-    const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
 
     const {
@@ -93,6 +92,15 @@ export default function LoginPage() {
                             {errors.password && (
                                 <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
                             )}
+                        </div>
+
+                        <div className="flex justify-end">
+                            <Link
+                                to="/forgot-password"
+                                className="text-sm font-medium text-primary-600 hover:text-primary-500"
+                            >
+                                Forgot your password?
+                            </Link>
                         </div>
 
                         <button
