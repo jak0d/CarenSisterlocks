@@ -11,6 +11,7 @@ import LoginPage from './pages/auth/LoginPage';
 import SignUpPage from './pages/auth/SignUpPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 import UpdatePasswordPage from './pages/auth/UpdatePasswordPage';
+import GoogleOAuthCallback from './pages/auth/GoogleOAuthCallback';
 
 // Admin Pages
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -120,6 +121,7 @@ function AppRoutes() {
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/update-password" element={<UpdatePasswordPage />} />
       <Route path="/worker/setup" element={<WorkerSetupPage />} />
+      <Route path="/oauth/google/callback" element={<GoogleOAuthCallback />} />
 
       {/* Admin Routes */}
       <Route

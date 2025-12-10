@@ -45,13 +45,13 @@ Building a streamlined booking platform for CarenSisterlocks with:
 - [ ] Create admin invitation system
 - [x] Add analytics/stats to dashboard
 
-### Week 3-4: Google Calendar Integration
-- [ ] Set up Google OAuth flow
-- [ ] Implement calendar connection for admin
-- [ ] Implement calendar connection for workers
-- [ ] Create availability fetching logic
-- [ ] Build time slot calculation algorithm
-- [ ] Test calendar event creation
+### Week 3-4: Google Calendar Integration ✅ COMPLETED
+- [x] Set up Google OAuth flow
+- [x] Implement calendar connection for admin
+- [x] Implement calendar connection for workers
+- [x] Create availability fetching logic
+- [x] Build time slot calculation algorithm
+- [x] Test calendar event creation
 
 ### Week 4-5: Public Booking Page
 - [ ] Design booking flow UI (5 steps)
