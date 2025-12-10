@@ -183,4 +183,5 @@ export interface AuthUser {
     email: string;
     role: 'client' | 'worker' | 'admin';
     full_name: string | null;
+    is_active?: boolean;
 }

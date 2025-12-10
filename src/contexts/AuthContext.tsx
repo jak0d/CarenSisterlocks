@@ -44,6 +44,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return () => subscription.unsubscribe();
     }, []);
 
+    // Real-time subscription for worker status changes
+    useEffect(() => {
+        if (!user || user.role !== 'worker') return;
+
+        console.log('Setting up real-time subscription for worker status changes...');
+
+        // Subscribe to changes on the workers table for this specific user
+        const channel = supabase
+            .channel('worker-status-changes')
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'workers',
+                    filter: `user_id=eq.${user.id}`,
+                },
+                async (payload) => {
+                    console.log('Worker status changed:', payload);
+                    const newStatus = (payload.new as any)?.is_active;
+
+                    if (newStatus !== undefined && newStatus !== user.is_active) {
+                        // Update the user's is_active status
+                        setUser(prev => prev ? { ...prev, is_active: newStatus } : null);
+
+                        // If worker was deactivated, sign them out
+                        if (newStatus === false) {
+                            console.log('Worker deactivated, signing out...');
+                            await signOut();
+                        }
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => {
+            console.log('Cleaning up real-time subscription...');
+            supabase.removeChannel(channel);
+        };
+    }, [user?.id, user?.role]);
+
     const fetchUserProfile = async (authUser: User, retryCount = 0) => {
         const MAX_RETRIES = 3;
         const RETRY_DELAY = 1000; // 1 second
@@ -79,8 +120,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 }
             }
 
-            console.log('User profile loaded successfully:', { id: data.id, email: data.email, role: data.role });
-            setUser(data as AuthUser);
+            // If user is a worker, check their status
+            let isActive = true;
+            if (data.role === 'worker') {
+                try {
+                    // Try to use the secure RPC function first (bypasses RLS)
+                    const { data: statusData, error: rpcError } = await supabase
+                        .rpc('get_my_worker_status');
+
+                    if (!rpcError) {
+                        // If RPC succeeds, use the result
+                        // statusData is boolean (true/false) or null (if not found)
+                        if (statusData === null) {
+                            isActive = false; // Worker profile deleted
+                        } else {
+                            isActive = statusData;
+                        }
+                    } else {
+                        // Fallback to direct table query if RPC doesn't exist yet
+                        console.warn('RPC get_my_worker_status failed, falling back to direct query:', rpcError);
+
+                        const { data: workerData, error: workerError } = await supabase
+                            .from('workers')
+                            .select('is_active')
+                            .eq('user_id', authUser.id)
+                            .maybeSingle();
+
+                        if (workerError) {
+                            console.error('Error fetching worker status:', workerError);
+                        }
+
+                        // If worker profile exists, use its status. If not (deleted or hidden by RLS), they are inactive.
+                        if (!workerData) {
+                            isActive = false;
+                        } else {
+                            isActive = workerData.is_active;
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error in worker status check:', err);
+                    // Default to false if we can't verify
+                    isActive = false;
+                }
+            }
+
+            console.log('User profile loaded successfully:', { id: data.id, email: data.email, role: data.role, isActive });
+
+            // Set the user with is_active flag
+            setUser({ ...data, is_active: isActive } as AuthUser);
             setLoading(false);
         } catch (error: any) {
             console.error('Error fetching user profile:', error);

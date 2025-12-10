@@ -1,7 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Toaster } from 'react-hot-toast';
+import toast, { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { supabase } from './lib/supabase';
 
 // Pages
 import HomePage from './pages/HomePage';
@@ -55,6 +56,52 @@ const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode;
 
   if (!allowedRoles.includes(user.role)) {
     return <Navigate to="/" replace />;
+  }
+
+  if (user.is_active === false) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="max-w-md w-full p-6 bg-white rounded-lg shadow-lg text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Account Deactivated</h2>
+          <p className="text-gray-600 mb-4">Your account has been deactivated. Please contact the administrator.</p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={async () => {
+                const toastId = toast.loading('Checking status...');
+                try {
+                  const { data, error } = await supabase.auth.getUser();
+                  if (error || !data.user) throw new Error('Failed to refresh status');
+
+                  // Force a reload to pick up new state if active
+                  // checks for being active will happen on mount
+                  window.location.reload();
+                } catch (err) {
+                  toast.error('Account is still deactivated', { id: toastId });
+                }
+              }}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-rose-500"
+            >
+              Check Status
+            </button>
+            <button
+              onClick={() => {
+                // Sign out to clear session
+                supabase.auth.signOut().then(() => {
+                  window.location.href = '/login';
+                });
+              }}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-rose-600 hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-rose-500"
+            >
+              Sign Out
+            </button>
+          </div>
+          <p className="mt-4 text-xs text-slate-500">
+            If you believe this is an error, try signing out and signing back in.
+          </p>
+
+        </div>
+      </div>
+    );
   }
 
   return <>{children}</>;

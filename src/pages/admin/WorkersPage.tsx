@@ -109,16 +109,21 @@ export default function WorkersPage() {
         try {
             if (editingWorker) {
                 // Update existing worker
-                const { error } = await supabase
+                const { data, error } = await supabase
                     .from('workers')
                     .update({
                         name: formData.name,
                         dashboard_permission: formData.dashboard_permission,
                         is_active: formData.is_active
                     })
-                    .eq('id', editingWorker.id);
+                    .eq('id', editingWorker.id)
+                    .select();
 
                 if (error) throw error;
+                if (!data || data.length === 0) {
+                    throw new Error('Update failed: No changes applied. Please run "020_resolve_worker_issues.sql" in Supabase SQL Editor.');
+                }
+
                 toast.success('Worker updated successfully');
                 setShowModal(false);
                 setEditingWorker(null);
@@ -235,12 +240,17 @@ export default function WorkersPage() {
 
     const toggleActive = async (worker: WorkerWithServices) => {
         try {
-            const { error } = await supabase
+            const { data, error } = await supabase
                 .from('workers')
                 .update({ is_active: !worker.is_active })
-                .eq('id', worker.id);
+                .eq('id', worker.id)
+                .select();
 
             if (error) throw error;
+            if (!data || data.length === 0) {
+                throw new Error('Update failed: Please run "020_resolve_worker_issues.sql" in Supabase to fix permissions and sync data.');
+            }
+
             toast.success(`Worker ${!worker.is_active ? 'activated' : 'deactivated'}`);
             fetchWorkers();
         } catch (error: any) {
@@ -444,7 +454,7 @@ export default function WorkersPage() {
                                 </span>
                                 <button
                                     onClick={() => toggleActive(worker)}
-                                    className="text-sm text-rose-600 hover:text-rose-700 font-medium"
+                                    className={`text-sm font-medium ${worker.is_active ? 'text-rose-600 hover:text-rose-700' : 'text-green-600 hover:text-green-700'}`}
                                 >
                                     {worker.is_active ? 'Deactivate' : 'Activate'}
                                 </button>
