@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import DashboardLayout from '../../components/DashboardLayout';
-import { LayoutDashboard, Package, Users, Calendar, Settings, UserCircle, Plus, Edit, Trash2, X } from 'lucide-react';
+import { LayoutDashboard, Package, Users, Calendar, Settings, UserCircle, Plus, Edit, Trash2, X, CheckCircle, XCircle, Clock, Sparkles } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import type { Service, ServiceFormData } from '../../types';
 import toast from 'react-hot-toast';
@@ -16,6 +16,7 @@ const navigation = [
 
 export default function ServicesPage() {
     const [services, setServices] = useState<Service[]>([]);
+    const [pendingServices, setPendingServices] = useState<Service[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [editingService, setEditingService] = useState<Service | null>(null);
@@ -42,7 +43,13 @@ export default function ServicesPage() {
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
-            setServices(data || []);
+
+            // Separate pending suggestions from active/inactive services
+            const pending = (data || []).filter(s => s.status === 'pending');
+            const regular = (data || []).filter(s => s.status !== 'pending');
+
+            setPendingServices(pending);
+            setServices(regular);
         } catch (error: any) {
             console.error('Error fetching services:', error);
             toast.error('Failed to load services');
@@ -138,6 +145,43 @@ export default function ServicesPage() {
         }
     };
 
+    const handleApprove = async (service: Service) => {
+        try {
+            const { error } = await supabase
+                .from('services')
+                .update({
+                    status: 'active',
+                    is_active: true
+                })
+                .eq('id', service.id);
+
+            if (error) throw error;
+            toast.success(`"${service.name}" approved and activated!`);
+            fetchServices();
+        } catch (error: any) {
+            console.error('Error approving service:', error);
+            toast.error('Failed to approve service');
+        }
+    };
+
+    const handleReject = async (service: Service) => {
+        if (!confirm(`Are you sure you want to reject "${service.name}"? This will delete the suggestion.`)) return;
+
+        try {
+            const { error } = await supabase
+                .from('services')
+                .delete()
+                .eq('id', service.id);
+
+            if (error) throw error;
+            toast.success('Suggestion rejected and removed');
+            fetchServices();
+        } catch (error: any) {
+            console.error('Error rejecting service:', error);
+            toast.error('Failed to reject service');
+        }
+    };
+
     const resetForm = () => {
         setFormData({
             name: '',
@@ -165,6 +209,13 @@ export default function ServicesPage() {
         }).format(amount);
     };
 
+    const formatDuration = (minutes: number) => {
+        if (minutes < 60) return `${minutes} min`;
+        const hours = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+    };
+
     if (loading) {
         return (
             <DashboardLayout title="Services Management" navigation={navigation}>
@@ -186,6 +237,83 @@ export default function ServicesPage() {
                     <Plus className="h-5 w-5" />
                     Add Service
                 </button>
+            </div>
+
+            {/* Pending Suggestions Section */}
+            {pendingServices.length > 0 && (
+                <div className="mb-8">
+                    <div className="flex items-center gap-2 mb-4">
+                        <Sparkles className="h-5 w-5 text-amber-500" />
+                        <h2 className="text-lg font-semibold text-gray-900">
+                            Pending Suggestions
+                        </h2>
+                        <span className="bg-amber-100 text-amber-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                            {pendingServices.length}
+                        </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {pendingServices.map((service) => (
+                            <div
+                                key={service.id}
+                                className="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl p-5 hover:shadow-lg transition-all"
+                            >
+                                <div className="flex items-start justify-between mb-3">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <Clock className="h-4 w-4 text-amber-600" />
+                                            <span className="text-xs font-medium text-amber-700 uppercase tracking-wide">
+                                                Pending Review
+                                            </span>
+                                        </div>
+                                        <h3 className="text-lg font-semibold text-gray-900">{service.name}</h3>
+                                    </div>
+                                </div>
+
+                                {service.description && (
+                                    <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                                        {service.description}
+                                    </p>
+                                )}
+
+                                <div className="flex gap-4 text-sm text-gray-600 mb-4">
+                                    <span className="font-medium">
+                                        {formatCurrency(service.base_price)}
+                                    </span>
+                                    <span>•</span>
+                                    <span>{formatDuration(service.duration_minutes)}</span>
+                                </div>
+
+                                <div className="flex gap-2 pt-3 border-t border-amber-200">
+                                    <button
+                                        onClick={() => handleApprove(service)}
+                                        className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+                                    >
+                                        <CheckCircle className="h-4 w-4" />
+                                        Approve
+                                    </button>
+                                    <button
+                                        onClick={() => handleEdit(service)}
+                                        className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+                                    >
+                                        <Edit className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                        onClick={() => handleReject(service)}
+                                        className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm font-medium"
+                                    >
+                                        <XCircle className="h-4 w-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Active Services Section */}
+            <div className="mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">All Services</h2>
             </div>
 
             {services.length === 0 ? (
@@ -250,7 +378,7 @@ export default function ServicesPage() {
                                 </span>
                                 <button
                                     onClick={() => toggleActive(service)}
-                                    className="text-sm text-rose-600 hover:text-rose-700 font-medium"
+                                    className={`text-sm font-medium ${service.is_active ? 'text-rose-600 hover:text-rose-700' : 'text-green-600 hover:text-green-700'}`}
                                 >
                                     {service.is_active ? 'Deactivate' : 'Activate'}
                                 </button>

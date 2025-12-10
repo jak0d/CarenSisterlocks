@@ -1,26 +1,79 @@
 import { Link } from 'react-router-dom';
-import { Calendar, Clock, CreditCard, Shield, Sparkles, Users } from 'lucide-react';
+import { Calendar, Clock, CreditCard, Shield, Sparkles, Users, Menu, X } from 'lucide-react';
+import { useState } from 'react';
 
 export default function HomePage() {
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50">
-            {/* Navigation */}
-            <nav className="container-custom py-6">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                        <Sparkles className="h-8 w-8 text-primary-600" />
-                        <span className="text-2xl font-bold text-gray-900">CarenSisterlocks</span>
+            {/* Modern Navigation Header */}
+            <header className="bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm sticky top-0 z-50">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="flex items-center justify-between h-16 md:h-[72px]">
+                        {/* Logo */}
+                        <Link
+                            to="/"
+                            className="flex items-center space-x-2.5 group transition-transform hover:scale-[1.02]"
+                        >
+                            <div className="relative">
+                                <Sparkles className="h-7 w-7 text-primary-600 transition-colors group-hover:text-primary-500" />
+                                <div className="absolute inset-0 bg-primary-500/20 blur-lg opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                            <span className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                                CarenSisterlocks
+                            </span>
+                        </Link>
+
+                        {/* Desktop Navigation */}
+                        <div className="hidden md:flex items-center space-x-3">
+                            <Link
+                                to="/login"
+                                className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-xl transition-all duration-200"
+                            >
+                                Sign In
+                            </Link>
+                            <Link
+                                to="/book"
+                                className="px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-700 hover:to-primary-600 rounded-xl shadow-sm hover:shadow-md transition-all duration-200"
+                            >
+                                Book Appointment
+                            </Link>
+                        </div>
+
+                        {/* Mobile Menu Button */}
+                        <button
+                            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                            className="md:hidden flex items-center justify-center h-10 w-10 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-all duration-200"
+                            aria-label="Toggle mobile menu"
+                        >
+                            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+                        </button>
                     </div>
-                    <div className="flex items-center space-x-4">
-                        <Link to="/login" className="btn btn-ghost">
+                </div>
+
+                {/* Mobile Navigation Menu */}
+                <div
+                    className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${mobileMenuOpen ? 'max-h-48 opacity-100' : 'max-h-0 opacity-0'}`}
+                >
+                    <div className="bg-white border-t border-gray-100 px-4 py-4 space-y-2">
+                        <Link
+                            to="/login"
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="block px-4 py-3 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-xl transition-all duration-200 font-medium"
+                        >
                             Sign In
                         </Link>
-                        <Link to="/book" className="btn btn-primary">
+                        <Link
+                            to="/book"
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="block px-4 py-3 text-white bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-700 hover:to-primary-600 rounded-xl text-center font-medium transition-all duration-200"
+                        >
                             Book Appointment
                         </Link>
                     </div>
                 </div>
-            </nav>
+            </header>
 
             {/* Hero Section */}
             <section className="container-custom py-20">
