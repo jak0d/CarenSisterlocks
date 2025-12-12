@@ -44,7 +44,7 @@ const defaultBusinessHours: BusinessHoursState = {
 const dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
 
 export default function SettingsPage() {
-    const { user } = useAuth();
+    useAuth(); // Ensure user is authenticated
     const [searchParams] = useSearchParams();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);

@@ -62,15 +62,15 @@ Building a streamlined booking platform for CarenSisterlocks with:
 - [x] Implement booking review screen
 - [x] Add form validation
 
-### Week 5-6: Email Notifications
-- [ ] Set up Resend API
-- [ ] Create email templates:
-  - [ ] Booking confirmation (no deposit)
-  - [ ] Booking confirmation (with deposit)
-  - [ ] 24-hour reminder
-  - [ ] New booking alert (worker/admin)
-- [ ] Implement email sending logic
-- [ ] Test email deliverability
+### Week 5-6: Email Notifications ✅ COMPLETED
+- [x] Set up Resend API
+- [x] Create email templates:
+  - [x] Booking confirmation (no deposit)
+  - [x] Booking confirmation (with deposit)
+  - [x] 24-hour reminder
+  - [x] New booking alert (worker/admin)
+- [x] Implement email sending logic
+- [x] Test email deliverability
 
 ## Phase 2: Payments (Weeks 7-9)
 

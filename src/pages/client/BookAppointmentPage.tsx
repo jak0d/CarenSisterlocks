@@ -16,6 +16,7 @@ import {
 } from '../../lib/availability';
 import type { TimeSlot } from '../../lib/availability';
 import type { Service, Worker, BookingFormData } from '../../types';
+import { sendBookingNotifications } from '../../lib/email';
 
 // Step configuration
 const STEPS = [
@@ -328,6 +329,21 @@ export default function BookAppointmentPage() {
                     console.warn('Calendar event creation failed:', calError);
                     // Don't fail the booking if calendar fails
                 }
+            }
+
+            // Send email notifications
+            try {
+                const assignedWorker = workers.find(w => w.id === workerId);
+                await sendBookingNotifications(booking.id, {
+                    requiresDeposit: selectedService?.requires_deposit || false,
+                    workerEmail: assignedWorker?.email,
+                    notifyWorker: true,
+                    notifyAdmin: true, // Admin email is configured in Edge Function secrets
+                });
+                console.log('Email notifications sent successfully');
+            } catch (emailError) {
+                console.warn('Email notification failed:', emailError);
+                // Don't fail the booking if email fails
             }
 
             setBookingSuccess(true);
