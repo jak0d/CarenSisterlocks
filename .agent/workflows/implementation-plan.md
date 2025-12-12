@@ -53,14 +53,14 @@ Building a streamlined booking platform for CarenSisterlocks with:
 - [x] Build time slot calculation algorithm
 - [x] Test calendar event creation
 
-### Week 4-5: Public Booking Page
-- [ ] Design booking flow UI (5 steps)
-- [ ] Implement service selection
-- [ ] Implement worker selection (optional)
-- [ ] Build date/time picker with availability
-- [ ] Create contact information form
-- [ ] Implement booking review screen
-- [ ] Add form validation
+### Week 4-5: Public Booking Page ✅ COMPLETED
+- [x] Design booking flow UI (5 steps)
+- [x] Implement service selection
+- [x] Implement worker selection (optional)
+- [x] Build date/time picker with availability
+- [x] Create contact information form
+- [x] Implement booking review screen
+- [x] Add form validation
 
 ### Week 5-6: Email Notifications
 - [ ] Set up Resend API
