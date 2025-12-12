@@ -34,6 +34,13 @@ serve(async (req) => {
     try {
         const { code, redirect_uri, user_id, user_role } = await req.json()
 
+        console.log('📥 Received OAuth request')
+        console.log('Redirect URI:', redirect_uri)
+        console.log('User ID:', user_id)
+        console.log('User Role:', user_role)
+        console.log('Client ID configured:', !!GOOGLE_CLIENT_ID)
+        console.log('Client Secret configured:', !!GOOGLE_CLIENT_SECRET)
+
         if (!code) {
             return new Response(
                 JSON.stringify({ error: 'Authorization code is required' }),
@@ -41,7 +48,23 @@ serve(async (req) => {
             )
         }
 
+        // Check if credentials are configured
+        if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+            console.error('❌ Google OAuth credentials not configured!')
+            return new Response(
+                JSON.stringify({
+                    error: 'Google OAuth not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in Supabase Edge Function secrets.',
+                    details: {
+                        client_id_set: !!GOOGLE_CLIENT_ID,
+                        client_secret_set: !!GOOGLE_CLIENT_SECRET
+                    }
+                }),
+                { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
+        }
+
         // Exchange code for tokens
+        console.log('🔄 Exchanging code for tokens...')
         const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
             method: 'POST',
             headers: {
@@ -58,12 +81,14 @@ serve(async (req) => {
 
         if (!tokenResponse.ok) {
             const errorData = await tokenResponse.json()
-            console.error('Token exchange error:', errorData)
+            console.error('❌ Token exchange error:', JSON.stringify(errorData))
             return new Response(
                 JSON.stringify({ error: 'Failed to exchange authorization code', details: errorData }),
                 { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             )
         }
+
+        console.log('✅ Token exchange successful!')
 
         const tokens: TokenResponse = await tokenResponse.json()
 

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import DashboardLayout from '../../components/DashboardLayout';
 import GoogleCalendarConnect from '../../components/GoogleCalendarConnect';
 import { LayoutDashboard, Package, Users, Calendar, Settings, Clock, Save, Loader2 } from 'lucide-react';
@@ -44,6 +45,7 @@ const dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'satur
 
 export default function SettingsPage() {
     const { user } = useAuth();
+    const [searchParams] = useSearchParams();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [calendarSettings, setCalendarSettings] = useState<any>(null);
@@ -54,23 +56,32 @@ export default function SettingsPage() {
         minAdvanceHours: 2,
     });
 
+    // Fetch settings on mount and when returning from OAuth
+    const refreshParam = searchParams.get('refresh');
+
     useEffect(() => {
         fetchSettings();
-    }, []);
+    }, [refreshParam]); // Re-fetch when refresh parameter changes
 
     const fetchSettings = async () => {
         try {
             setLoading(true);
+            console.log('🔄 Fetching settings...');
 
             // Fetch Google Calendar settings
-            const { data: calendarData } = await supabase
+            const { data: calendarData, error: calendarError } = await supabase
                 .from('system_settings')
                 .select('value')
                 .eq('key', 'google_calendar_admin')
                 .single();
 
+            console.log('📅 Calendar settings response:', { calendarData, calendarError });
+
             if (calendarData) {
+                console.log('✅ Calendar connected:', calendarData.value?.connected);
                 setCalendarSettings(calendarData.value);
+            } else {
+                console.log('⚠️ No calendar settings found');
             }
 
             // Fetch business hours

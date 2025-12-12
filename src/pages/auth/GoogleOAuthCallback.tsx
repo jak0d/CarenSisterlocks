@@ -8,15 +8,55 @@ import toast from 'react-hot-toast';
 export default function GoogleOAuthCallback() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const { user, loading } = useAuth();
     const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
     const [message, setMessage] = useState('Processing Google Calendar connection...');
+    const [hasProcessed, setHasProcessed] = useState(false);
+
+    // Parse the state parameter to get user info if user is not loaded yet
+    const getStateData = () => {
+        try {
+            const stateParam = searchParams.get('state');
+            if (stateParam) {
+                return JSON.parse(atob(stateParam));
+            }
+        } catch (e) {
+            console.error('Failed to parse state parameter:', e);
+        }
+        return null;
+    };
 
     useEffect(() => {
-        handleOAuthCallback();
-    }, []);
+        // Wait for auth to finish loading before processing
+        if (loading) {
+            console.log('⏳ Waiting for auth to load...');
+            return;
+        }
 
-    const handleOAuthCallback = async () => {
+        // Only process once
+        if (hasProcessed) {
+            return;
+        }
+
+        // Get user info from auth context or state parameter
+        const stateData = getStateData();
+        const userId = user?.id || stateData?.user_id;
+        const userRole = user?.role || stateData?.role;
+
+        console.log('🔐 Auth loaded. User:', user?.id, 'State data:', stateData);
+
+        if (!userId || !userRole) {
+            console.error('❌ No user found and no valid state parameter');
+            setStatus('error');
+            setMessage('Session expired. Please log in and try connecting again.');
+            return;
+        }
+
+        setHasProcessed(true);
+        handleOAuthCallback(userId, userRole);
+    }, [loading, hasProcessed]);
+
+    const handleOAuthCallback = async (userId: string, userRole: string) => {
         const code = searchParams.get('code');
         const error = searchParams.get('error');
         const state = searchParams.get('state');
@@ -40,6 +80,13 @@ export default function GoogleOAuthCallback() {
             const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
             const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+            console.log('🔄 Starting Google Calendar OAuth token exchange...');
+            console.log('Supabase URL:', supabaseUrl);
+            console.log('User ID:', userId);
+            console.log('User Role:', userRole);
+
+            setMessage('Exchanging authorization code for tokens...');
+
             const response = await fetch(`${supabaseUrl}/functions/v1/google-calendar-auth`, {
                 method: 'POST',
                 headers: {
@@ -49,22 +96,65 @@ export default function GoogleOAuthCallback() {
                 body: JSON.stringify({
                     code,
                     redirect_uri: `${window.location.origin}/oauth/google/callback`,
-                    user_id: user?.id,
-                    user_role: user?.role,
+                    user_id: userId,
+                    user_role: userRole,
                     state,
                 }),
             });
 
+            console.log('📡 Edge Function response status:', response.status);
+
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to connect Google Calendar');
+                const errorText = await response.text();
+                console.error('❌ Edge Function error response:', errorText);
+
+                let errorMessage = 'Failed to connect Google Calendar';
+
+                try {
+                    const errorData = JSON.parse(errorText);
+                    errorMessage = errorData.error || errorData.message || errorMessage;
+
+                    // Show detailed Google OAuth error
+                    if (errorData.details) {
+                        const detailedError = errorData.details.error_description || errorData.details.error || '';
+                        console.error('🔍 Google OAuth Error Details:', errorData.details, detailedError);
+
+                        // Provide helpful messages for common errors
+                        if (errorData.details.error === 'invalid_grant') {
+                            if (errorData.details.error_description?.includes('expired')) {
+                                errorMessage = 'Authorization code expired. Please try connecting again.';
+                            } else if (errorData.details.error_description?.includes('Malformed')) {
+                                errorMessage = 'Invalid authorization code. Please try connecting again.';
+                            } else if (errorData.details.error_description?.includes('redirect_uri')) {
+                                errorMessage = 'Redirect URI mismatch. Check Google Cloud Console settings.';
+                            } else {
+                                errorMessage = `OAuth Error: ${errorData.details.error_description || 'Invalid grant'}. Please try connecting again.`;
+                            }
+                        }
+                    }
+
+                    // Check if Edge Function is not deployed
+                    if (response.status === 404) {
+                        errorMessage = 'Google Calendar Edge Function is not deployed. Please deploy the Supabase Edge Functions first.';
+                    }
+                } catch (e) {
+                    if (response.status === 404) {
+                        errorMessage = 'Google Calendar Edge Function is not deployed. Please deploy the Supabase Edge Functions first.';
+                    }
+                }
+
+                throw new Error(errorMessage);
             }
 
             const data = await response.json();
+            console.log('✅ Token exchange successful. Calendar ID:', data.calendar_id);
+
+            setMessage('Saving calendar connection...');
 
             // Update the worker/admin calendar connection status
-            if (user?.role === 'worker') {
-                const { error: updateError } = await supabase
+            if (userRole === 'worker') {
+                console.log('💾 Updating worker calendar connection...');
+                const { error: updateError, data: updateData } = await supabase
                     .from('workers')
                     .update({
                         google_calendar_id: data.calendar_id,
@@ -72,14 +162,18 @@ export default function GoogleOAuthCallback() {
                         google_refresh_token: data.refresh_token,
                         calendar_connected: true,
                     })
-                    .eq('user_id', user.id);
+                    .eq('user_id', userId)
+                    .select();
 
                 if (updateError) {
+                    console.error('❌ Worker update error:', updateError);
                     throw updateError;
                 }
-            } else if (user?.role === 'admin') {
+                console.log('✅ Worker calendar connection saved:', updateData);
+            } else if (userRole === 'admin') {
                 // For admin, store in system_settings
-                const { error: updateError } = await supabase
+                console.log('💾 Updating admin calendar connection...');
+                const { error: updateError, data: updateData } = await supabase
                     .from('system_settings')
                     .upsert({
                         key: 'google_calendar_admin',
@@ -89,35 +183,39 @@ export default function GoogleOAuthCallback() {
                             refresh_token: data.refresh_token,
                             connected: true,
                             connected_at: new Date().toISOString(),
-                            connected_by: user.id,
+                            connected_by: userId,
                         },
-                    });
+                    })
+                    .select();
 
                 if (updateError) {
+                    console.error('❌ Admin settings update error:', updateError);
                     throw updateError;
                 }
+                console.log('✅ Admin calendar connection saved:', updateData);
             }
 
             setStatus('success');
             setMessage('Google Calendar connected successfully!');
             toast.success('Google Calendar connected!');
 
-            // Redirect after a short delay
+            // Redirect after a short delay with cache-busting
             setTimeout(() => {
-                if (user?.role === 'admin') {
-                    navigate('/admin/settings');
-                } else if (user?.role === 'worker') {
-                    navigate('/worker');
+                if (userRole === 'admin') {
+                    // Force refresh by adding a timestamp parameter
+                    navigate('/admin/settings?refresh=' + Date.now());
+                } else if (userRole === 'worker') {
+                    navigate('/worker?refresh=' + Date.now());
                 } else {
                     navigate('/');
                 }
             }, 2000);
 
         } catch (err: any) {
-            console.error('OAuth callback error:', err);
+            console.error('❌ OAuth callback error:', err);
             setStatus('error');
             setMessage(err.message || 'Failed to connect Google Calendar');
-            toast.error('Failed to connect Google Calendar');
+            toast.error(err.message || 'Failed to connect Google Calendar');
         }
     };
 
@@ -125,7 +223,7 @@ export default function GoogleOAuthCallback() {
         <div className="min-h-screen bg-gradient-to-br from-rose-50 to-pink-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8 text-center">
                 <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 ${status === 'processing' ? 'bg-blue-100' :
-                        status === 'success' ? 'bg-green-100' : 'bg-red-100'
+                    status === 'success' ? 'bg-green-100' : 'bg-red-100'
                     }`}>
                     {status === 'processing' && (
                         <Loader2 className="h-10 w-10 text-blue-600 animate-spin" />
